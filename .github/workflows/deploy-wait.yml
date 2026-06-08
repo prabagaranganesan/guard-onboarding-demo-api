@@ -74,10 +74,11 @@ jobs:
           API_URL="${API_URL%/}"
           if [ -z "$API_URL" ]; then
             echo "::error::STAGING_API_URL is empty."
-            echo "Set it as a GitHub Actions Variable (not Secret):"
-            echo "  Repo → Settings → Secrets and variables → Actions → Variables"
+            echo "Set it as a GitHub Actions Variable (recommended, not Secret):"
+            echo "  Repo → Settings → Secrets and variables → Actions → Variables tab"
             echo "  Name: STAGING_API_URL"
             echo "  Value: https://your-api.onrender.com"
+            echo "If you already added it under Secrets, move it to Variables or update ci.yml to pass secrets.STAGING_API_URL."
             exit 1
           fi
           echo "Polling ${API_URL}${HEALTH_PATH} for gitSha=${EXPECTED_SHA}"
