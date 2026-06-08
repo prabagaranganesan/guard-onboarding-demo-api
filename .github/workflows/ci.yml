@@ -32,7 +32,7 @@ jobs:
     with:
       platform: render
       expected_sha: ${{ github.sha }}
-      api_url: ${{ vars.STAGING_API_URL || secrets.STAGING_API_URL }}
+      api_url: ${{ vars.STAGING_API_URL }}
       health_path: /health
       environment_label: staging
     secrets:
