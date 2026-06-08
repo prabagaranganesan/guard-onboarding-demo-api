@@ -23,8 +23,9 @@ uvicorn main:app --reload --host 127.0.0.1 --port 8099
 Main pipeline: `.github/workflows/ci.yml` (`test` → `deploy-staging` → `guard-staging`).
 
 Required GitHub config:
+- Variable `STAGING_DEPLOY_PLATFORM` = `render`
 - Variable `STAGING_API_URL` — Render service URL
-- Secret `STAGING_DEPLOY_HOOK` — Render deploy hook
+- Secret `STAGING_DEPLOY_HOOK` — Render deploy hook (Settings → Auto-Deploy OFF)
 - Secrets `PROXYHAWK_API_EMAIL`, `PROXYHAWK_API_PASSWORD`
 
 Smoke test:
