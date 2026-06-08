@@ -1,0 +1,48 @@
+# Main pipeline — calls the reusable Guard CI workflows installed by install.sh.
+# Docs: https://proxyhawk.io/docs/guard-ci-onboarding.html
+
+name: Backend CI / CD
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -c "import main; assert main.app"
+
+  deploy-staging:
+    needs: test
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    uses: ./.github/workflows/deploy-wait.yml
+    with:
+      platform: render
+      expected_sha: ${{ github.sha }}
+      api_url: ${{ vars.STAGING_API_URL }}
+      health_path: /health
+      environment_label: staging
+    secrets:
+      DEPLOY_HOOK: ${{ secrets.STAGING_DEPLOY_HOOK }}
+
+  guard-staging:
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    uses: ./.github/workflows/guard-post-backend-deploy.yml
+    with:
+      environment: staging
+      commit_sha: ${{ github.sha }}
+    secrets: inherit

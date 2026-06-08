@@ -312,7 +312,11 @@ def current_user_email(
 
 @app.get("/health", tags=["system"])
 def health() -> dict:
-    return {"status": "ok", "service": "guard-onboarding-demo-api"}
+    return {
+        "status": "ok",
+        "service": "guard-onboarding-demo-api",
+        "gitSha": os.environ.get("RENDER_GIT_COMMIT", os.environ.get("GIT_SHA", "dev")),
+    }
 
 
 @app.post(
