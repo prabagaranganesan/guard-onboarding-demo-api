@@ -16,7 +16,16 @@ uvicorn main:app --reload --host 127.0.0.1 --port 8099
 
 - Swagger UI: http://127.0.0.1:8099/docs
 - OpenAPI JSON (live): http://127.0.0.1:8099/openapi.json
-- Health: http://127.0.0.1:8099/health
+- Health: http://127.0.0.1:8099/health (includes `gitSha` for deploy verification)
+
+## GitHub Actions
+
+Main pipeline: `.github/workflows/ci.yml` (`test` → `deploy-staging` → `guard-staging`).
+
+Required GitHub config:
+- Variable `STAGING_API_URL` — Render service URL
+- Secret `STAGING_DEPLOY_HOOK` — Render deploy hook
+- Secrets `PROXYHAWK_API_EMAIL`, `PROXYHAWK_API_PASSWORD`
 
 Smoke test:
 
