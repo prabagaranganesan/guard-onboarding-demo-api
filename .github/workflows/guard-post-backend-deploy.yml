@@ -1,0 +1,172 @@
+# Run ProxyHawk Guard automatically after a backend deployment.
+#
+# Public copy (curl from any machine):
+#   https://proxyhawk.io/guard-ci/workflows/guard-post-backend-deploy.yml
+# Install all Guard CI workflows:
+#   curl -fsSL https://proxyhawk.io/guard-ci/install.sh | bash
+# Docs: https://proxyhawk.io/docs/guard-ci-onboarding.html
+#
+name: Guard Post-Backend Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Deployment environment — must match Guard session routing label (e.g. dev, staging, production)"
+        required: true
+        type: string
+      commit_sha:
+        description: "Commit SHA to evaluate and map to PR"
+        required: false
+        type: string
+      service_name:
+        description: "Optional monorepo service key"
+        required: false
+        type: string
+      fail_on_guard_issues:
+        description: "Fail when Guard reports broken endpoints or errors"
+        required: false
+        type: boolean
+        default: false
+      run_mode:
+        description: "headless (default), latest, or mac_push"
+        required: false
+        type: string
+        default: "headless"
+      guard_base_url:
+        description: "Optional deploy host override for endpoint replay"
+        required: false
+        type: string
+      guard_runner_url:
+        description: "Private URL for prebuilt guard-runner binary (.tar.gz or raw binary)"
+        required: false
+        type: string
+    secrets:
+      PROXYHAWK_API_BASE_URL:
+        required: false
+      PROXYHAWK_API_EMAIL:
+        required: false
+      PROXYHAWK_API_PASSWORD:
+        required: false
+      PROXYHAWK_API_TOKEN:
+        required: false
+      PROXYHAWK_MACHINE_ID:
+        required: false
+      PROXYHAWK_GUARD_RUNNER_URL:
+        required: false
+      PROXYHAWK_GUARD_RUNNER_TOKEN:
+        required: false
+
+  repository_dispatch:
+    types: [proxyhawk-guard-deploy]
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment (must match Guard mapping)"
+        required: true
+        default: "dev"
+      commit_sha:
+        description: "Commit SHA (optional)"
+        required: false
+      service_name:
+        description: "Monorepo service key (optional)"
+        required: false
+      fail_on_guard_issues:
+        description: "Fail when Guard run is failing"
+        required: false
+        default: false
+        type: boolean
+      run_mode:
+        description: "headless, latest, or mac_push"
+        required: false
+        default: "headless"
+      guard_base_url:
+        description: "Deploy host override (optional)"
+        required: false
+      guard_runner_url:
+        description: "Private URL for prebuilt guard-runner binary (.tar.gz or raw binary)"
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  resolve-context:
+    name: Resolve checkpoint inputs
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.ctx.outputs.environment }}
+      commit_sha: ${{ steps.ctx.outputs.commit_sha }}
+      service_name: ${{ steps.ctx.outputs.service_name }}
+      fail_on_guard_issues: ${{ steps.ctx.outputs.fail_on_guard_issues }}
+      run_mode: ${{ steps.ctx.outputs.run_mode }}
+      guard_base_url: ${{ steps.ctx.outputs.guard_base_url }}
+      guard_runner_url: ${{ steps.ctx.outputs.guard_runner_url }}
+    steps:
+      - name: Resolve inputs
+        id: ctx
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            payload='${{ toJson(github.event.client_payload) }}'
+            environment=$(echo "$payload" | python3 -c "import sys,json; p=json.load(sys.stdin); print(p.get('environment') or 'dev')" 2>/dev/null || echo "dev")
+            commit_sha=$(echo "$payload" | python3 -c "import sys,json; p=json.load(sys.stdin); print(p.get('commitSha') or p.get('commit_sha') or '')" 2>/dev/null || true)
+            service_name=$(echo "$payload" | python3 -c "import sys,json; p=json.load(sys.stdin); print(p.get('serviceName') or p.get('service_name') or '')" 2>/dev/null || true)
+            fail_on_guard=$(echo "$payload" | python3 -c "import sys,json; p=json.load(sys.stdin); print('true' if p.get('failOnGuardIssues') or p.get('fail_on_guard_issues') else 'false')" 2>/dev/null || echo "false")
+            run_mode=$(echo "$payload" | python3 -c "import sys,json; p=json.load(sys.stdin); print(p.get('runMode') or p.get('run_mode') or 'headless')" 2>/dev/null || echo "headless")
+            guard_base_url=$(echo "$payload" | python3 -c "import sys,json; p=json.load(sys.stdin); print(p.get('guardBaseUrl') or p.get('guard_base_url') or '')" 2>/dev/null || true)
+            guard_runner_url=$(echo "$payload" | python3 -c "import sys,json; p=json.load(sys.stdin); print(p.get('guardRunnerUrl') or p.get('guard_runner_url') or '')" 2>/dev/null || true)
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            environment="${{ github.event.inputs.environment }}"
+            commit_sha="${{ github.event.inputs.commit_sha }}"
+            service_name="${{ github.event.inputs.service_name }}"
+            fail_on_guard="${{ github.event.inputs.fail_on_guard_issues }}"
+            run_mode="${{ github.event.inputs.run_mode || 'headless' }}"
+            guard_base_url="${{ github.event.inputs.guard_base_url }}"
+            guard_runner_url="${{ github.event.inputs.guard_runner_url }}"
+          else
+            environment="${{ inputs.environment }}"
+            commit_sha="${{ inputs.commit_sha }}"
+            service_name="${{ inputs.service_name }}"
+            fail_on_guard="${{ inputs.fail_on_guard_issues }}"
+            run_mode="${{ inputs.run_mode || 'headless' }}"
+            guard_base_url="${{ inputs.guard_base_url }}"
+            guard_runner_url="${{ inputs.guard_runner_url }}"
+          fi
+
+          if [ -z "$commit_sha" ]; then
+            commit_sha="${{ github.sha }}"
+          fi
+
+          {
+            echo "environment=${environment}"
+            echo "commit_sha=${commit_sha}"
+            echo "service_name=${service_name}"
+            echo "fail_on_guard_issues=${fail_on_guard}"
+            echo "run_mode=${run_mode}"
+            echo "guard_base_url=${guard_base_url}"
+            echo "guard_runner_url=${guard_runner_url}"
+          } >> "$GITHUB_OUTPUT"
+
+  guard-checkpoint:
+    name: ProxyHawk Guard checkpoint
+    needs: resolve-context
+    uses: ./.github/workflows/guard-deploy-pr-check.yml
+    with:
+      environment: ${{ needs.resolve-context.outputs.environment }}
+      commit_sha: ${{ needs.resolve-context.outputs.commit_sha }}
+      service_name: ${{ needs.resolve-context.outputs.service_name }}
+      fail_on_guard_issues: ${{ needs.resolve-context.outputs.fail_on_guard_issues == 'true' }}
+      run_mode: ${{ needs.resolve-context.outputs.run_mode }}
+      guard_base_url: ${{ needs.resolve-context.outputs.guard_base_url }}
+      guard_runner_url: ${{ needs.resolve-context.outputs.guard_runner_url }}
+    secrets:
+      PROXYHAWK_API_BASE_URL: ${{ secrets.PROXYHAWK_API_BASE_URL }}
+      PROXYHAWK_API_EMAIL: ${{ secrets.PROXYHAWK_API_EMAIL }}
+      PROXYHAWK_API_PASSWORD: ${{ secrets.PROXYHAWK_API_PASSWORD }}
+      PROXYHAWK_API_TOKEN: ${{ secrets.PROXYHAWK_API_TOKEN }}
+      PROXYHAWK_MACHINE_ID: ${{ secrets.PROXYHAWK_MACHINE_ID }}
+      PROXYHAWK_GUARD_RUNNER_URL: ${{ secrets.PROXYHAWK_GUARD_RUNNER_URL }}
+      PROXYHAWK_GUARD_RUNNER_TOKEN: ${{ secrets.PROXYHAWK_GUARD_RUNNER_TOKEN }}
