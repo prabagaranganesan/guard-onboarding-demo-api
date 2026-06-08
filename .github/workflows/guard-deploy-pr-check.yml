@@ -214,49 +214,84 @@ jobs:
       - name: Resolve Guard mapping from backend
         id: mapping
         run: |
-          owner="${{ steps.ctx.outputs.mapping_owner }}"
-          repo="${{ steps.ctx.outputs.mapping_repo }}"
-          if [ -z "$owner" ]; then owner="${GITHUB_REPOSITORY%%/*}"; fi
-          if [ -z "$repo" ]; then repo="${GITHUB_REPOSITORY#*/}"; fi
-          env_name="${{ steps.ctx.outputs.environment }}"
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          primary_env="${{ steps.ctx.outputs.environment }}"
           service_name="${{ steps.ctx.outputs.service_name }}"
-          echo "Resolving mapping for owner=${owner} repo=${repo} environment=${env_name}"
-
           url="${PROXYHAWK_API_BASE_URL%/}/api/v1/integrations/github/pipeline/resolve-mapping"
-          code=$(curl -sS -o mapping.json -w "%{http_code}" \
-            -H "Authorization: Bearer ${PROXYHAWK_API_TOKEN}" \
-            -H "ngrok-skip-browser-warning: true" \
-            --get "$url" \
-            --data-urlencode "owner=${owner}" \
-            --data-urlencode "repo=${repo}" \
-            --data-urlencode "environment=${env_name}" \
-            --data-urlencode "service=${service_name}")
+          matched=false
+          guard_session_id=""
+          target_base_url=""
+          resolved_env=""
 
-          if [ "$code" != "200" ]; then
-            echo "Mapping resolve failed (HTTP $code)"
-            cat mapping.json || true
-            exit 1
-          fi
-
-          python3 - <<'PY'
-          import json
+          try_env() {
+            local env_name="$1"
+            echo "Trying resolve: owner=${owner} repo=${repo} environment=${env_name}"
+            local code
+            code=$(curl -sS -o mapping.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${PROXYHAWK_API_TOKEN}" \
+              -H "ngrok-skip-browser-warning: true" \
+              --get "$url" \
+              --data-urlencode "owner=${owner}" \
+              --data-urlencode "repo=${repo}" \
+              --data-urlencode "environment=${env_name}" \
+              --data-urlencode "service=${service_name}")
+            if [ "$code" != "200" ]; then
+              echo "Mapping resolve failed (HTTP $code) for environment=${env_name}"
+              cat mapping.json || true
+              return 1
+            fi
+            python3 - <<'PY'
+          import json, os
           with open("mapping.json", "r", encoding="utf-8") as f:
               payload = json.load(f)
           matched = bool(payload.get("matched"))
           mapping = payload.get("mapping") or {}
-          guard_session_id = mapping.get("guardSessionId") or ""
-          target_base_url = mapping.get("targetBaseUrl") or ""
-          with open(".mapping.out", "w", encoding="utf-8") as out:
+          with open(".mapping.try", "w", encoding="utf-8") as out:
               out.write(f"matched={'true' if matched else 'false'}\n")
-              out.write(f"guard_session_id={guard_session_id}\n")
-              out.write(f"target_base_url={target_base_url}\n")
+              out.write(f"guard_session_id={mapping.get('guardSessionId') or ''}\n")
+              out.write(f"target_base_url={mapping.get('targetBaseUrl') or ''}\n")
           PY
-          cat .mapping.out >> "$GITHUB_OUTPUT"
+            if grep -q '^matched=true' .mapping.try 2>/dev/null; then
+              matched=true
+              guard_session_id="$(grep '^guard_session_id=' .mapping.try | cut -d= -f2-)"
+              target_base_url="$(grep '^target_base_url=' .mapping.try | cut -d= -f2-)"
+              resolved_env="$env_name"
+              echo "Mapping resolved with environment=${env_name}"
+              return 0
+            fi
+            echo "No mapping for environment=${env_name}"
+            cat mapping.json || true
+            return 1
+          }
+
+          for env_name in "$primary_env" dev staging production; do
+            [ -z "$env_name" ] && continue
+            if try_env "$env_name"; then
+              break
+            fi
+          done
+
+          {
+            echo "matched=${matched}"
+            echo "guard_session_id=${guard_session_id}"
+            echo "target_base_url=${target_base_url}"
+            echo "resolved_environment=${resolved_env}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Fail when no active mapping (checkpoint required)
         if: steps.mapping.outputs.matched != 'true'
         run: |
           echo "ProxyHawk Guard checkpoint failed: no active mapping for repo/environment."
+          echo ""
+          echo "CI looked up: owner=${GITHUB_REPOSITORY%%/*} repo=${GITHUB_REPOSITORY#*/}"
+          echo "Tried environments: ${{ steps.ctx.outputs.environment }}, dev, staging, production"
+          echo ""
+          echo "Fix in ProxyHawk Mac app → Deploy checkpoint:"
+          echo "  1. Repository owner must exactly match GitHub: ${GITHUB_REPOSITORY%%/*}"
+          echo "  2. Session routing environment must match ci.yml (currently: ${{ steps.ctx.outputs.environment }})"
+          echo "  3. Click Save repository mapping, then re-run this job"
+          cat mapping.json 2>/dev/null || true
           exit 1
 
       - name: Notify backend deployment event
