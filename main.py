@@ -27,6 +27,15 @@ app = FastAPI(
         "login, product list/detail, and profile with nested JSON shapes."
     ),
     version="1.0.0",
+    servers=[
+        {
+            "url": os.environ.get(
+                "PUBLIC_API_URL",
+                os.environ.get("RENDER_EXTERNAL_URL", "http://127.0.0.1:8099"),
+            ).rstrip("/"),
+            "description": "Deployed or local demo API",
+        },
+    ],
 )
 
 bearer_scheme = HTTPBearer(auto_error=False)
