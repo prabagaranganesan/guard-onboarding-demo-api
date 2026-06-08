@@ -1,0 +1,36 @@
+{
+  "data": {
+    "id": "usr_1001",
+    "email": "demo@proxyhawk.io",
+    "displayName": "Demo User",
+    "role": "customer",
+    "createdAt": "2025-01-10T08:00:00Z",
+    "preferences": {
+      "theme": "light",
+      "locale": "en-US",
+      "notifications": {
+        "email": true,
+        "push": false,
+        "marketing": false
+      }
+    },
+    "address": {
+      "line1": "100 Market Street",
+      "line2": "Suite 400",
+      "city": "San Francisco",
+      "state": "CA",
+      "postalCode": "94105",
+      "country": "US"
+    },
+    "subscription": {
+      "plan": "pro",
+      "status": "active",
+      "renewsAt": "2026-07-01T00:00:00Z",
+      "features": ["guard", "traffic-capture", "ci-checkpoint"]
+    }
+  },
+  "meta": {
+    "requestId": "req_profile_001",
+    "generatedAt": "2026-06-08T12:00:00+00:00"
+  }
+}

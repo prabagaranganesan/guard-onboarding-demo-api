@@ -1,0 +1,52 @@
+{
+  "data": {
+    "id": "prod_001",
+    "sku": "WH-1000",
+    "name": "Wireless Headphones",
+    "category": "electronics",
+    "price": {
+      "amount": 249.99,
+      "currency": "USD"
+    },
+    "inventory": {
+      "inStock": true,
+      "quantity": 42,
+      "warehouse": {
+        "id": "wh_sf",
+        "name": "SF Bay"
+      }
+    },
+    "description": "Noise-cancelling over-ear headphones with 30h battery life.",
+    "specifications": {
+      "weightGrams": 250,
+      "connectivity": ["bluetooth", "usb-c"],
+      "battery": {
+        "hours": 30,
+        "fastChargeMinutes": 15
+      }
+    },
+    "vendor": {
+      "id": "vnd_acme",
+      "name": "Acme Audio",
+      "contact": {
+        "email": "support@acme-audio.example",
+        "phone": "+1-555-0100"
+      }
+    },
+    "reviews": [
+      {
+        "id": "rev_1",
+        "author": "alex",
+        "score": 5,
+        "title": "Great sound",
+        "body": "Deep bass and comfortable fit.",
+        "createdAt": "2025-11-02T14:22:00Z"
+      }
+    ],
+    "relatedProductIds": ["prod_002"]
+  },
+  "meta": {
+    "requestId": "req_detail_prod_001",
+    "generatedAt": "2026-06-08T12:00:00+00:00"
+  }
+}

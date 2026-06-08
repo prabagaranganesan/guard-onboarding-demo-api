@@ -1,0 +1,43 @@
+{
+  "data": {
+    "products": [
+      {
+        "id": "prod_001",
+        "sku": "WH-1000",
+        "name": "Wireless Headphones",
+        "category": "electronics",
+        "price": {
+          "amount": 249.99,
+          "currency": "USD"
+        },
+        "inventory": {
+          "inStock": true,
+          "quantity": 42,
+          "warehouse": {
+            "id": "wh_sf",
+            "name": "SF Bay"
+          }
+        },
+        "tags": ["audio", "wireless"],
+        "rating": {
+          "average": 4.6,
+          "count": 1284
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "pageSize": 20,
+      "totalItems": 3,
+      "totalPages": 1
+    },
+    "filters": {
+      "category": null,
+      "applied": false
+    }
+  },
+  "meta": {
+    "requestId": "req_list_001",
+    "generatedAt": "2026-06-08T12:00:00+00:00"
+  }
+}

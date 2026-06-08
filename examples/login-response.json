@@ -1,0 +1,11 @@
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example",
+  "tokenType": "Bearer",
+  "expiresIn": 3600,
+  "user": {
+    "id": "usr_1001",
+    "email": "demo@proxyhawk.io",
+    "displayName": "Demo User",
+    "role": "customer"
+  }
+}
